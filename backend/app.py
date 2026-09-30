@@ -1,14 +1,84 @@
+import io
+import json
+from typing import Optional
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from PIL import Image
 import gradio as gr
-from main import app as fastapi_app
+import uvicorn
 
-# Create a clean fallback interface while serving all FastAPI endpoints
-demo = gr.Interface(
-    fn=lambda: "VisionVerse Multimodal Captioning API is operational.",
-    inputs=None,
-    outputs="text",
-    title="VisionVerse Caption API",
-    description="Backend API powering VisionVerse with Salesforce BLIP on Hugging Face Spaces."
+from model import caption_model
+
+api_app = FastAPI(
+    title="VisionVerse Caption Backend",
+    description="Real AI Image Captioning powered by Salesforce BLIP (Transformers + PyTorch)",
+    version="1.0.0"
 )
 
-# Mount the FastAPI app so /generate-caption and /health endpoints are live
-app = gr.mount_gradio_app(fastapi_app, demo, path="/")
+api_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@api_app.get("/")
+@api_app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "VisionVerse Caption Generator",
+        "model": "Salesforce/blip-image-captioning-base",
+        "device": str(caption_model.device)
+    }
+
+@api_app.post("/generate-caption")
+@api_app.post("/caption")
+async def generate_caption_endpoint(
+    image: Optional[UploadFile] = File(None),
+    file: Optional[UploadFile] = File(None),
+    options: Optional[str] = Form(None),
+    beam_width: Optional[int] = Form(None),
+    multiple: Optional[bool] = Form(None),
+    attention: Optional[bool] = Form(None)
+):
+    upload_file = image or file
+    if not upload_file:
+        raise HTTPException(
+            status_code=400,
+            detail="No image file provided. Please attach an image in the 'image' or 'file' form field."
+        )
+
+    opts = {}
+    if options:
+        try:
+            opts = json.loads(options)
+        except Exception:
+            opts = {}
+
+    final_beam_width = beam_width if beam_width is not None else opts.get("beamWidth", opts.get("beam_width", 5))
+    final_multiple = multiple if multiple is not None else opts.get("multiple", False)
+    final_attention = attention if attention is not None else opts.get("attention", True)
+
+    contents = await upload_file.read()
+    try:
+        pil_image = Image.open(io.BytesIO(contents)).convert("RGB")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
+
+    caption_result = caption_model.generate_caption(
+        image=pil_image,
+        beam_width=int(final_beam_width),
+        multiple=bool(final_multiple),
+        return_attention=bool(final_attention)
+    )
+    return caption_result
+
+with gr.Blocks(title="VisionVerse API") as demo:
+    gr.Markdown("# 🌌 VisionVerse Multimodal Captioning Backend\n\nSalesforce BLIP API is active and ready.")
+
+app = gr.mount_gradio_app(api_app, demo, path="/gradio")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=7860)
