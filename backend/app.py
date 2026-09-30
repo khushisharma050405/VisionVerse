@@ -41,8 +41,7 @@ async def generate_caption_endpoint(
     options: Optional[str] = Form(None),
     beam_width: Optional[int] = Form(None),
     multiple: Optional[bool] = Form(None),
-    attention: Optional[bool] = Form(None),
-    api_key: Optional[str] = Form(None)
+    attention: Optional[bool] = Form(None)
 ):
     upload_file = image or file
     if not upload_file:
@@ -61,7 +60,6 @@ async def generate_caption_endpoint(
     final_beam_width = beam_width if beam_width is not None else opts.get("beamWidth", opts.get("beam_width", 5))
     final_multiple = multiple if multiple is not None else opts.get("multiple", False)
     final_attention = attention if attention is not None else opts.get("attention", False)
-    final_api_key = api_key or opts.get("apiKey") or opts.get("api_key") or os.environ.get("GEMINI_API_KEY")
 
     contents = await upload_file.read()
     try:
@@ -74,8 +72,7 @@ async def generate_caption_endpoint(
             image=pil_image,
             beam_width=int(final_beam_width),
             multiple=bool(final_multiple),
-            attention=bool(final_attention),
-            api_key=final_api_key
+            attention=bool(final_attention)
         )
         return caption_result
     except ValueError as ve:

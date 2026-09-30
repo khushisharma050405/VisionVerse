@@ -1,34 +1,27 @@
 # VisionVerse – AI Image Caption Generator
 
-VisionVerse is a full-stack multimodal image caption generator powered by **Google Gemini 1.5 Flash Vision** (high-accuracy vision-language model with zero cloud memory limits), served via a **FastAPI** backend with a modern **React + Vite** frontend.
+VisionVerse is a full-stack multimodal image caption generator powered by **Vision Transformer (ViT-GPT2)** with Transformers.js and ONNX runtime. It generates accurate image captions with zero API keys and zero cloud memory limits, paired with a modern **React + Vite** frontend.
 
 ---
 
-## Architecture: REAL IMAGE → MULTIMODAL VISION MODEL → REAL CAPTION
+## Architecture: REAL IMAGE → VISION TRANSFORMER → REAL CAPTION
 
 ```
-┌─────────────────────────────────┐
-│   React Frontend (Vite)         │
-│   - Drag-and-drop / file upload │
-│   - Photographic sample library │
-│   - Confidence meter & history  │
-│   - Gemini API Key settings     │
-└────────────────┬────────────────┘
-                 │ POST /generate-caption (multipart form-data)
-                 ▼
-┌─────────────────────────────────┐
-│   FastAPI Backend (port 8001)   │
-│   - Python 3 + PIL validation   │
-│   - Zero-RAM Cloud Architecture │
-└────────────────┬────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────┐
-│   Google Gemini 1.5 Flash Vision│
-│   - Multimodal Vision-Language  │
-│   - 100% Accurate Descriptions  │
-│   - Multi-caption & Saliency    │
-└─────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│   React Frontend (Vite)                      │
+│   - Drag-and-drop / file upload              │
+│   - Photographic sample library              │
+│   - Confidence meter & history               │
+│   - Client-side Vision Transformer inference │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│   Vision Transformer Engine (ViT-GPT2)       │
+│   - Hugging Face Transformers.js / ONNX      │
+│   - Accurate MS-COCO image understanding     │
+│   - Zero API key requirement                 │
+└──────────────────────────────────────────────┘
 ```
 
 ---
