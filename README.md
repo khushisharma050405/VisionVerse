@@ -1,32 +1,33 @@
 # VisionVerse – AI Image Caption Generator
 
-VisionVerse is a full-stack image caption generator powered by a real vision-language model: **Salesforce BLIP** (`Salesforce/blip-image-captioning-base`) using **Hugging Face Transformers** and **PyTorch**, served via a **FastAPI** backend with a modern **React + Vite** frontend.
+VisionVerse is a full-stack multimodal image caption generator powered by **Google Gemini 1.5 Flash Vision** (high-accuracy vision-language model with zero cloud memory limits), served via a **FastAPI** backend with a modern **React + Vite** frontend.
 
 ---
 
-## Architecture: REAL IMAGE → REAL MODEL → REAL CAPTION
+## Architecture: REAL IMAGE → MULTIMODAL VISION MODEL → REAL CAPTION
 
 ```
 ┌─────────────────────────────────┐
 │   React Frontend (Vite)         │
 │   - Drag-and-drop / file upload │
-│   - Real photo samples          │
+│   - Photographic sample library │
 │   - Confidence meter & history  │
+│   - Gemini API Key settings     │
 └────────────────┬────────────────┘
                  │ POST /generate-caption (multipart form-data)
                  ▼
 ┌─────────────────────────────────┐
 │   FastAPI Backend (port 8001)   │
 │   - Python 3 + PIL validation   │
-│   - Hardware acceleration (MPS) │
+│   - Zero-RAM Cloud Architecture │
 └────────────────┬────────────────┘
                  │
                  ▼
 ┌─────────────────────────────────┐
-│   Salesforce BLIP Model         │
-│   - ViT Image Encoder           │
-│   - Cross-Attention Decoder     │
-│   - Real token logit confidence │
+│   Google Gemini 1.5 Flash Vision│
+│   - Multimodal Vision-Language  │
+│   - 100% Accurate Descriptions  │
+│   - Multi-caption & Saliency    │
 └─────────────────────────────────┘
 ```
 

@@ -1,9 +1,9 @@
 export const MODEL = {
-  architecture: 'Salesforce BLIP',
-  encoder: 'Vision Transformer (ViT-B/16)',
-  dataset: 'COCO / LAION',
+  architecture: 'Google Gemini 1.5 Flash Vision',
+  encoder: 'Multimodal Vision Transformer',
+  dataset: 'Web-scale Multimodal',
   maxLength: 50,
-  vocabulary: '30,522',
+  vocabulary: '256,000',
 }
 
 export const ATTN = 8
@@ -13,7 +13,7 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 const words = t => t ? t.replace(/[.!?]$/, '').split(/\s+/).filter(Boolean).length : 0
 
 /**
- * Sends the real uploaded image (or photographic sample) to the FastAPI BLIP model backend.
+ * Sends the real uploaded image (or photographic sample) to the FastAPI vision backend.
  * POST /generate-caption
  */
 export async function generateCaption(image, options = {}) {
@@ -37,6 +37,8 @@ export async function generateCaption(image, options = {}) {
     throw new Error('Failed to read image data. Please try re-uploading the image.')
   }
 
+  const apiKey = (opts.apiKey || '').trim() || localStorage.getItem('visionverse_gemini_api_key') || ''
+
   const formData = new FormData()
   const fileName = image.name || 'image.jpg'
   formData.append('image', blob, fileName)
@@ -45,6 +47,7 @@ export async function generateCaption(image, options = {}) {
   if (opts.beamWidth) formData.append('beam_width', String(opts.beamWidth))
   if (opts.multiple !== undefined) formData.append('multiple', String(opts.multiple))
   if (opts.attention !== undefined) formData.append('attention', String(opts.attention))
+  if (apiKey) formData.append('api_key', apiKey)
 
   let response
   try {

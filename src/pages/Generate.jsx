@@ -4,11 +4,12 @@ import { SAMPLES } from '../data/samples'
 import { generateCaption } from '../services/captionService'
 import { Card, Toggle, readFile } from '../components/ui'
 
-export default function Generate({ session, setSession, settings, onSave }) {
+export default function Generate({ session, setSession, settings, setSettings, onSave }) {
   const { image, result } = session
   const [opts, setOpts] = useState(result?.options || settings.defaults)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
+  const [keyInput, setKeyInput] = useState('')
   const [copied, setCopied] = useState(false)
   const [drag, setDrag] = useState(false)
   const [pick, setPick] = useState(0)
@@ -26,12 +27,13 @@ export default function Generate({ session, setSession, settings, onSave }) {
     setSession({ image: { dataUrl: await readFile(f), name: f.name }, result: null })
   }
 
-  const run = async (o = opts) => {
+  const run = async (o = opts, overrideKey = null) => {
     if (!image || loading) return
     setLoading(true)
     setErr('')
+    const effectiveKey = overrideKey !== null ? overrideKey : (settings?.apiKey || '')
     try {
-      const r = await generateCaption(image, { ...o, beamWidth: settings.beamWidth })
+      const r = await generateCaption(image, { ...o, beamWidth: settings.beamWidth, apiKey: effectiveKey })
       setSession({ image, result: r })
       setPick(0)
       if (settings.autoSave) onSave(image, r)
@@ -40,6 +42,17 @@ export default function Generate({ session, setSession, settings, onSave }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const saveInlineKey = () => {
+    const k = keyInput.trim()
+    if (!k) return
+    if (setSettings) {
+      setSettings(s => ({ ...s, apiKey: k }))
+    }
+    localStorage.setItem('visionverse_gemini_api_key', k)
+    setErr('')
+    run(opts, k)
   }
 
   const setOpt = (k, v) => {
@@ -215,14 +228,47 @@ export default function Generate({ session, setSession, settings, onSave }) {
               className="w-full flex items-center justify-center gap-2 bg-forest-800 hover:bg-forest-700 active:scale-[0.99] disabled:bg-cream-300 disabled:text-ink/40 text-cream-100 py-3.5 px-6 rounded-xl font-medium text-base transition-all shadow-sm hover:shadow cursor-pointer"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-              {loading ? 'Analyzing with Salesforce BLIP…' : 'Generate caption'}
+              {loading ? 'Analyzing with Gemini Vision…' : 'Generate caption'}
             </button>
 
             {err && (
-              <p role="alert" className="mt-3 text-sm text-red-800 flex gap-2 items-start bg-red-50 p-3 rounded-xl border border-red-200">
-                <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                <span>{err}</span>
-              </p>
+              <div role="alert" className="mt-3 text-sm text-red-800 bg-red-50 p-3.5 rounded-xl border border-red-200">
+                <div className="flex gap-2 items-start">
+                  <AlertCircle size={16} className="mt-0.5 shrink-0 text-red-600" />
+                  <span className="leading-snug">{err}</span>
+                </div>
+                {err.toLowerCase().includes('api key') && (
+                  <div className="mt-3 pt-3 border-t border-red-200/80">
+                    <p className="text-xs font-semibold text-ink/80 mb-1.5">
+                      Enter Gemini API key to activate instant AI vision:
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        placeholder="Paste AIzaSy... key"
+                        value={keyInput}
+                        onChange={e => setKeyInput(e.target.value)}
+                        className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-cream-300 bg-white font-mono text-ink outline-none focus:border-forest-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={saveInlineKey}
+                        className="text-xs bg-forest-800 hover:bg-forest-700 text-white px-3 py-1.5 rounded-lg font-medium cursor-pointer transition-colors"
+                      >
+                        Save & Generate
+                      </button>
+                    </div>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block mt-2 text-[11px] text-forest-700 hover:underline font-medium"
+                    >
+                      Get your free Gemini API key (takes 10 seconds, no credit card) &rarr;
+                    </a>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </Card>

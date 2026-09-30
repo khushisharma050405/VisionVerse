@@ -157,7 +157,7 @@ export default function App() {
 
         <main className="px-5 md:px-10 py-8 pb-28 md:pb-12 max-w-7xl">
           {page === 'generate' && (
-            <Generate session={session} setSession={setSession} settings={cfg} onSave={save} />
+            <Generate session={session} setSession={setSession} settings={cfg} setSettings={setSettings} onSave={save} />
           )}
           {page === 'history' && (
             <History
