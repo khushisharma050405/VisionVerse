@@ -64,21 +64,26 @@ class CaptionModel:
                 with urllib.request.urlopen(req, timeout=8) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     for m in data.get("models", []):
+                        m_name = m.get("name", "").replace("models/", "")
+                        # Strictly filter out audio, TTS, embedding, or non-vision models
+                        if any(bad in m_name.lower() for bad in ["tts", "audio", "embed", "realtime", "imagen", "text-"]):
+                            continue
+
                         methods = m.get("supportedGenerationMethods", [])
                         if "generateContent" in methods:
-                            m_name = m.get("name", "").replace("models/", "")
                             discovered.append((ver, m_name))
             except Exception as e:
                 print(f"[VisionVerse] Query {ver}/models error: {e}")
 
-        # Prioritize flash models, then pro models, preferring recent versions
+        # Prioritize standard multimodal flash models
         def score(item):
             ver, name = item
             val = 100
-            if "2.5" in name: val -= 50
-            elif "2.0" in name: val -= 40
-            elif "1.5" in name: val -= 30
-            if "flash" in name: val -= 20
+            if "2.0-flash" in name and "exp" not in name: val -= 80
+            elif "1.5-flash" in name: val -= 70
+            elif "2.5-flash" in name and "preview" not in name: val -= 65
+            elif "flash" in name: val -= 50
+            elif "pro" in name: val -= 30
             if ver == "v1beta": val -= 5
             return val
 
@@ -201,8 +206,8 @@ class CaptionModel:
                 except Exception:
                     err_msg = str(http_err)
 
-                # If the specific model is not found, continue to next candidate
-                if "not found" in err_msg.lower() or http_err.code == 404:
+                # If the specific model is not found or lacks image modality, continue to next candidate
+                if any(k in err_msg.lower() for k in ["not found", "modality is not enabled", "not supported for generatecontent"]) or http_err.code in (400, 404):
                     last_error = err_msg
                     continue
                 else:
