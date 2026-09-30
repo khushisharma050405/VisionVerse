@@ -1,3 +1,4 @@
+import os
 import io
 import json
 from typing import Optional
@@ -13,7 +14,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for frontend Vite development
+# Enable CORS for frontend Vite development and production deployments
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,7 +30,8 @@ def health_check():
         "status": "healthy",
         "service": "VisionVerse Caption Generator",
         "model": "Salesforce/blip-image-captioning-base",
-        "device": str(caption_model.device)
+        "device": str(caption_model.device),
+        "loaded": caption_model.is_loaded()
     }
 
 @app.post("/generate-caption")
@@ -67,9 +69,8 @@ async def generate_caption_endpoint(
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
         pil_image = Image.open(io.BytesIO(content))
-        # Ensure image is valid and can be loaded
+        # Ensure image is valid
         pil_image.verify()
-        # Re-open after verify() since verify() can mutate internal state
         pil_image = Image.open(io.BytesIO(content))
     except UnidentifiedImageError:
         raise HTTPException(
@@ -92,4 +93,6 @@ async def generate_caption_endpoint(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8001, reload=False)
+    # Render and cloud providers pass PORT in the environment
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)

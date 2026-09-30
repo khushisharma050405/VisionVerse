@@ -5,7 +5,6 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import gradio as gr
-import uvicorn
 
 from model import caption_model
 
@@ -30,7 +29,8 @@ def health_check():
         "status": "healthy",
         "service": "VisionVerse Caption Generator",
         "model": "Salesforce/blip-image-captioning-base",
-        "device": str(caption_model.device)
+        "device": str(caption_model.device),
+        "loaded": caption_model.is_loaded()
     }
 
 @api_app.post("/generate-caption")
@@ -47,7 +47,7 @@ async def generate_caption_endpoint(
     if not upload_file:
         raise HTTPException(
             status_code=400,
-            detail="No image file provided. Please attach an image in the 'image' or 'file' form field."
+            detail="No image file provided."
         )
 
     opts = {}
@@ -59,7 +59,7 @@ async def generate_caption_endpoint(
 
     final_beam_width = beam_width if beam_width is not None else opts.get("beamWidth", opts.get("beam_width", 5))
     final_multiple = multiple if multiple is not None else opts.get("multiple", False)
-    final_attention = attention if attention is not None else opts.get("attention", True)
+    final_attention = attention if attention is not None else opts.get("attention", False)
 
     contents = await upload_file.read()
     try:
