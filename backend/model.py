@@ -4,13 +4,14 @@ import json
 import base64
 import urllib.request
 import urllib.error
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from PIL import Image
 
 class CaptionModel:
     def __init__(self, model_name: str = "Google Gemini Multimodal Vision"):
         self.model_name = model_name
         self.device = "Cloud Neural Vision Engine"
+        self._cached_model = None
         print(f"[VisionVerse] Initialized CaptionModel ({self.model_name}) with zero RAM footprint.")
 
     def is_loaded(self) -> bool:
@@ -50,6 +51,40 @@ class CaptionModel:
         except Exception:
             return [[0.5 for _ in range(8)] for _ in range(8)]
 
+    def _discover_models(self, api_key: str) -> List[Tuple[str, str]]:
+        """
+        Dynamically queries Google Generative Language API (v1beta & v1) to find
+        the exact models authorized for this specific API key.
+        """
+        discovered = []
+        for ver in ["v1beta", "v1"]:
+            try:
+                url = f"https://generativelanguage.googleapis.com/{ver}/models?key={api_key}"
+                req = urllib.request.Request(url)
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    for m in data.get("models", []):
+                        methods = m.get("supportedGenerationMethods", [])
+                        if "generateContent" in methods:
+                            m_name = m.get("name", "").replace("models/", "")
+                            discovered.append((ver, m_name))
+            except Exception as e:
+                print(f"[VisionVerse] Query {ver}/models error: {e}")
+
+        # Prioritize flash models, then pro models, preferring recent versions
+        def score(item):
+            ver, name = item
+            val = 100
+            if "2.5" in name: val -= 50
+            elif "2.0" in name: val -= 40
+            elif "1.5" in name: val -= 30
+            if "flash" in name: val -= 20
+            if ver == "v1beta": val -= 5
+            return val
+
+        discovered.sort(key=score)
+        return discovered
+
     def _gemini_generate(
         self,
         image: Image.Image,
@@ -58,9 +93,8 @@ class CaptionModel:
         beam_width: int = 3
     ) -> Dict[str, Any]:
         """
-        Invokes Google Gemini Multimodal Vision API directly.
-        Automatically checks candidate model versions (2.5-flash, 2.0-flash, 1.5-flash-latest)
-        to guarantee high availability and resilience across API changes.
+        Invokes Google Gemini Multimodal Vision API.
+        Dynamically inspects authorized models for the key to ensure 100% compatibility.
         """
         # Optimize image size for fast transfer (max 1024px)
         rgb_image = image.convert("RGB")
@@ -111,20 +145,28 @@ class CaptionModel:
         }
         payload_bytes = json.dumps(payload).encode("utf-8")
 
-        # Candidate models list in priority order
-        candidates = [
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-001",
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-flash",
-            "gemini-1.5-pro",
-            "gemini-2.0-flash-exp"
+        # Discover all models available to this specific key
+        discovered_candidates = self._discover_models(api_key)
+
+        fallback_candidates = [
+            ("v1beta", "gemini-2.5-flash"),
+            ("v1", "gemini-2.5-flash"),
+            ("v1beta", "gemini-2.0-flash"),
+            ("v1", "gemini-2.0-flash"),
+            ("v1beta", "gemini-1.5-flash"),
+            ("v1", "gemini-1.5-flash"),
+            ("v1beta", "gemini-1.5-flash-latest"),
+            ("v1", "gemini-1.5-flash-latest"),
+            ("v1beta", "gemini-pro"),
+            ("v1", "gemini-pro"),
         ]
 
+        candidates = discovered_candidates if discovered_candidates else fallback_candidates
+        print(f"[VisionVerse] Trying candidate models: {candidates[:5]}")
+
         last_error = None
-        for model_id in candidates:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+        for ver, model_id in candidates:
+            url = f"https://generativelanguage.googleapis.com/{ver}/models/{model_id}:generateContent?key={api_key}"
             req = urllib.request.Request(
                 url,
                 data=payload_bytes,
@@ -149,7 +191,7 @@ class CaptionModel:
                             raw_json = raw_json[4:].strip()
 
                     res_data = json.loads(raw_json)
-                    res_data["_used_model"] = model_id
+                    res_data["_used_model"] = f"{ver}/{model_id}"
                     return res_data
 
             except urllib.error.HTTPError as http_err:
@@ -159,7 +201,7 @@ class CaptionModel:
                 except Exception:
                     err_msg = str(http_err)
 
-                # If the specific model is not found in this API version, try next candidate
+                # If the specific model is not found, continue to next candidate
                 if "not found" in err_msg.lower() or http_err.code == 404:
                     last_error = err_msg
                     continue
@@ -169,7 +211,14 @@ class CaptionModel:
             except urllib.error.URLError as url_err:
                 raise ConnectionError(f"Could not reach Google Gemini API: {url_err.reason}")
 
-        raise ValueError(f"Could not find an active Gemini model for this key. Last error: {last_error}")
+        if not discovered_candidates:
+            raise ValueError(
+                f"No active Gemini models were returned for this API key. "
+                f"Please ensure the key was created at https://aistudio.google.com/app/apikey "
+                f"with Generative Language API enabled. Last error: {last_error}"
+            )
+
+        raise ValueError(f"Could not generate caption with any available Gemini model. Last error: {last_error}")
 
     def predict(
         self,
