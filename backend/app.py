@@ -67,18 +67,26 @@ async def generate_caption_endpoint(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
 
-    caption_result = caption_model.generate_caption(
+    caption_result = caption_model.predict(
         image=pil_image,
         beam_width=int(final_beam_width),
         multiple=bool(final_multiple),
-        return_attention=bool(final_attention)
+        attention=bool(final_attention)
     )
     return caption_result
 
-with gr.Blocks(title="VisionVerse API") as demo:
-    gr.Markdown("# 🌌 VisionVerse Multimodal Captioning Backend\n\nSalesforce BLIP API is active and ready.")
+def predict_gradio(img):
+    if img is None:
+        return "Please upload an image"
+    res = caption_model.predict(img)
+    return res["caption"]
 
-app = gr.mount_gradio_app(api_app, demo, path="/gradio")
+demo = gr.Interface(
+    fn=predict_gradio,
+    inputs=gr.Image(type="pil", label="Upload Image"),
+    outputs=gr.Textbox(label="Generated Caption"),
+    title="🌌 VisionVerse Multimodal Captioning Backend",
+    description="Salesforce BLIP Vision Transformer API is active and ready."
+)
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+app = gr.mount_gradio_app(api_app, demo, path="/")
