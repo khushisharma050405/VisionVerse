@@ -1,19 +1,30 @@
 import { useState } from 'react'
-import { RotateCcw, Trash2, Cpu } from 'lucide-react'
+import { RotateCcw, Trash2, Cpu, ExternalLink, CheckCircle2 } from 'lucide-react'
 import { Card, Toggle } from '../components/ui'
 
 export const DEFAULT_SETTINGS = {
   autoSave: true,
   beamWidth: 3,
+  apiKey: '',
   defaults: { multiple: false, beam: false, attention: false },
 }
 
 export default function Settings({ settings, setSettings, historyCount, onClear }) {
   const [done, setDone] = useState('')
+  const [showKey, setShowKey] = useState(false)
 
   const flash = m => {
     setDone(m)
     setTimeout(() => setDone(''), 2200)
+  }
+
+  const handleKeyChange = val => {
+    setSettings({ ...settings, apiKey: val })
+    if (val.trim()) {
+      localStorage.setItem('visionverse_gemini_api_key', val.trim())
+    } else {
+      localStorage.removeItem('visionverse_gemini_api_key')
+    }
   }
 
   const d = (k, v) => setSettings({ ...settings, defaults: { ...settings.defaults, [k]: v } })
@@ -27,14 +38,54 @@ export default function Settings({ settings, setSettings, historyCount, onClear 
       <Card className="mt-6">
         <div className="flex items-center gap-2 mb-2">
           <Cpu size={18} className="text-forest-700" />
-          <h3 className="font-serif text-lg">Neural Vision Engine</h3>
+          <h3 className="font-serif text-lg">Multimodal Vision Engine</h3>
         </div>
         <p className="text-sm text-ink/70">
-          VisionVerse runs an on-device <b>Vision Transformer + GPT-2 (ViT-GPT2)</b> neural model fine-tuned on MS-COCO.
-          Inference runs directly in your browser using optimized WebAssembly / WebGPU ONNX runtimes with zero external API dependencies.
+          VisionVerse is powered by <b>Google Gemini Multimodal Vision</b>, enabling accurate recognition of complex objects, characters, artworks, and real-world scenes.
         </p>
-        <div className="mt-3 text-xs text-forest-800 bg-forest-50 p-2.5 rounded-lg border border-forest-200">
-          ✓ 100% Free &amp; Offline-capable • Zero API keys required • Private and secure
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="gemini-key" className="text-xs font-semibold uppercase tracking-wider text-ink/70">
+              Gemini API Key (Optional if set in Render)
+            </label>
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-forest-700 hover:underline flex items-center gap-1 font-medium"
+            >
+              Get free key <ExternalLink size={12} />
+            </a>
+          </div>
+
+          <div className="relative">
+            <input
+              id="gemini-key"
+              type={showKey ? 'text' : 'password'}
+              placeholder="Paste your Gemini API key here (AIzaSy...)"
+              value={settings.apiKey || ''}
+              onChange={e => handleKeyChange(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-cream-300 focus:border-forest-600 focus:ring-2 focus:ring-forest-600/20 bg-cream-50/50 text-sm font-mono text-ink placeholder:text-ink/30 outline-none pr-16"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink/50 hover:text-ink font-sans cursor-pointer"
+            >
+              {showKey ? 'Hide' : 'Show'}
+            </button>
+          </div>
+
+          <div className="mt-2.5 flex items-center gap-2 text-xs text-ink/60">
+            {settings.apiKey ? (
+              <span className="flex items-center gap-1 text-forest-700 font-medium">
+                <CheckCircle2 size={13} /> Active in browser
+              </span>
+            ) : (
+              <span>Your Render backend automatically uses its configured <code>GEMINI_API_KEY</code>.</span>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -72,7 +123,7 @@ export default function Settings({ settings, setSettings, historyCount, onClear 
             onClear()
             flash('History cleared')
           }}
-          className="mt-3 flex items-center gap-2 text-sm px-3.5 py-2 rounded-xl border border-cream-300 hover:bg-cream-100 disabled:opacity-40 transition-colors"
+          className="mt-3 flex items-center gap-2 text-sm px-3.5 py-2 rounded-xl border border-cream-300 hover:bg-cream-100 disabled:opacity-40 transition-colors cursor-pointer"
         >
           <Trash2 size={14} />
           Clear {historyCount} saved caption{historyCount === 1 ? '' : 's'}
@@ -83,9 +134,10 @@ export default function Settings({ settings, setSettings, historyCount, onClear 
         <button
           onClick={() => {
             setSettings(DEFAULT_SETTINGS)
+            localStorage.removeItem('visionverse_gemini_api_key')
             flash('Settings reset to defaults')
           }}
-          className="flex items-center gap-2 text-sm px-3.5 py-2 rounded-xl border border-cream-300 hover:bg-cream-100 transition-colors"
+          className="flex items-center gap-2 text-sm px-3.5 py-2 rounded-xl border border-cream-300 hover:bg-cream-100 transition-colors cursor-pointer"
         >
           <RotateCcw size={14} />
           Reset to defaults

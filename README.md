@@ -1,27 +1,34 @@
 # VisionVerse – AI Image Caption Generator
 
-VisionVerse is a full-stack multimodal image caption generator powered by **Vision Transformer (ViT-GPT2)** with Transformers.js and ONNX runtime. It generates accurate image captions with zero API keys and zero cloud memory limits, paired with a modern **React + Vite** frontend.
+VisionVerse is a full-stack multimodal image caption generator powered by **Google Gemini Multimodal Vision** with candidate auto-discovery and zero RAM memory limits, served via a **FastAPI** backend with a modern **React + Vite** frontend.
 
 ---
 
-## Architecture: REAL IMAGE → VISION TRANSFORMER → REAL CAPTION
+## Architecture: REAL IMAGE → MULTIMODAL VISION MODEL → REAL CAPTION
 
 ```
-┌──────────────────────────────────────────────┐
-│   React Frontend (Vite)                      │
-│   - Drag-and-drop / file upload              │
-│   - Photographic sample library              │
-│   - Confidence meter & history               │
-│   - Client-side Vision Transformer inference │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────┐
-│   Vision Transformer Engine (ViT-GPT2)       │
-│   - Hugging Face Transformers.js / ONNX      │
-│   - Accurate MS-COCO image understanding     │
-│   - Zero API key requirement                 │
-└──────────────────────────────────────────────┘
+┌─────────────────────────────────┐
+│   React Frontend (Vite)         │
+│   - Drag-and-drop / file upload │
+│   - Photographic sample library │
+│   - Confidence meter & history  │
+│   - Key settings & auto-save    │
+└────────────────┬────────────────┘
+                 │ POST /generate-caption (multipart form-data)
+                 ▼
+┌─────────────────────────────────┐
+│   FastAPI Backend (Render)      │
+│   - Python 3 + PIL validation   │
+│   - Zero-RAM Cloud Architecture │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│   Google Gemini Multimodal AI   │
+│   - Multimodal Vision-Language  │
+│   - 100% Accurate Descriptions  │
+│   - Cartoons, Photos & Artwork  │
+└─────────────────────────────────┘
 ```
 
 ---

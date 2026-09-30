@@ -31,7 +31,7 @@ export default function Generate({ session, setSession, settings, onSave }) {
     setLoading(true)
     setErr('')
     try {
-      const r = await generateCaption(image, { ...o, beamWidth: settings.beamWidth })
+      const r = await generateCaption(image, { ...o, beamWidth: settings.beamWidth, apiKey: settings.apiKey })
       setSession({ image, result: r })
       setPick(0)
       if (settings.autoSave) onSave(image, r)
@@ -215,7 +215,7 @@ export default function Generate({ session, setSession, settings, onSave }) {
               className="w-full flex items-center justify-center gap-2 bg-forest-800 hover:bg-forest-700 active:scale-[0.99] disabled:bg-cream-300 disabled:text-ink/40 text-cream-100 py-3.5 px-6 rounded-xl font-medium text-base transition-all shadow-sm hover:shadow cursor-pointer"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-              {loading ? 'Analyzing with Vision Transformer…' : 'Generate caption'}
+              {loading ? 'Analyzing with Vision Model…' : 'Generate caption'}
             </button>
 
             {err && (
