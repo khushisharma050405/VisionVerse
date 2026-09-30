@@ -1,10 +1,10 @@
+import os
 import io
 import json
 from typing import Optional
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
-import gradio as gr
 
 from model import caption_model
 
@@ -75,18 +75,28 @@ async def generate_caption_endpoint(
     )
     return caption_result
 
-def predict_gradio(img):
-    if img is None:
-        return "Please upload an image"
-    res = caption_model.predict(img)
-    return res["caption"]
+# Optional Gradio UI mounting if Gradio is installed (e.g. Hugging Face Spaces)
+try:
+    import gradio as gr
 
-demo = gr.Interface(
-    fn=predict_gradio,
-    inputs=gr.Image(type="pil", label="Upload Image"),
-    outputs=gr.Textbox(label="Generated Caption"),
-    title="🌌 VisionVerse Multimodal Captioning Backend",
-    description="Salesforce BLIP Vision Transformer API is active and ready."
-)
+    def predict_gradio(img):
+        if img is None:
+            return "Please upload an image"
+        res = caption_model.predict(img)
+        return res["caption"]
 
-app = gr.mount_gradio_app(api_app, demo, path="/")
+    demo = gr.Interface(
+        fn=predict_gradio,
+        inputs=gr.Image(type="pil", label="Upload Image"),
+        outputs=gr.Textbox(label="Generated Caption"),
+        title="🌌 VisionVerse Multimodal Captioning Backend",
+        description="Salesforce BLIP Vision Transformer API is active and ready."
+    )
+    app = gr.mount_gradio_app(api_app, demo, path="/gradio")
+except ImportError:
+    app = api_app
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)
