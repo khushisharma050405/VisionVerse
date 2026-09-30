@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-cream-50 text-ink font-sans antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid #3a6b58;
+  outline-offset: 2px;
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(1deg); }
+}
+
+@keyframes floatSlowReverse {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(12px) rotate(-1deg); }
+}
+
+@keyframes scanSweep {
+  0% { transform: translateY(-100%); opacity: 0; }
+  15% { opacity: 0.35; }
+  85% { opacity: 0.35; }
+  100% { transform: translateY(800%); opacity: 0; }
+}
+
+@keyframes spinSlowReticle {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spinReverseReticle {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes spinCircularLabel {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-float-slow {
+  animation: floatSlow 14s ease-in-out infinite;
+}
+
+.animate-float-slow-reverse {
+  animation: floatSlowReverse 18s ease-in-out infinite;
+}
+
+.animate-spin-reticle {
+  animation: spinSlowReticle 50s linear infinite;
+}
+
+.animate-spin-reticle-rev {
+  animation: spinReverseReticle 65s linear infinite;
+}
+
+.animate-spin-circular-label {
+  animation: spinCircularLabel 24s linear infinite;
+  transform-origin: center;
+}
+
+.animate-scan-sweep {
+  animation: scanSweep 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
