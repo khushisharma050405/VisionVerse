@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 from PIL import Image
 
 class CaptionModel:
-    def __init__(self, model_name: str = "Google Gemini 1.5 Flash Vision"):
+    def __init__(self, model_name: str = "Google Gemini Multimodal Vision"):
         self.model_name = model_name
         self.device = "Cloud Neural Vision Engine"
         print(f"[VisionVerse] Initialized CaptionModel ({self.model_name}) with zero RAM footprint.")
@@ -58,8 +58,9 @@ class CaptionModel:
         beam_width: int = 3
     ) -> Dict[str, Any]:
         """
-        Invokes Google Gemini 1.5 Flash Multimodal Vision API directly.
-        Uses standard library urllib for zero overhead, instant execution, and zero RAM issues.
+        Invokes Google Gemini Multimodal Vision API directly.
+        Automatically checks candidate model versions (2.5-flash, 2.0-flash, 1.5-flash-latest)
+        to guarantee high availability and resilience across API changes.
         """
         # Optimize image size for fast transfer (max 1024px)
         rgb_image = image.convert("RGB")
@@ -88,7 +89,6 @@ class CaptionModel:
             "}"
         )
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         payload = {
             "contents": [
                 {
@@ -109,42 +109,67 @@ class CaptionModel:
                 "responseMimeType": "application/json"
             }
         }
+        payload_bytes = json.dumps(payload).encode("utf-8")
 
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-        )
+        # Candidate models list in priority order
+        candidates = [
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-001",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-2.0-flash-exp"
+        ]
 
-        try:
-            with urllib.request.urlopen(req, timeout=25) as response:
-                body = json.loads(response.read().decode("utf-8"))
-                candidates = body.get("candidates", [])
-                if not candidates:
-                    raise ValueError("No response generated from Gemini Vision.")
+        last_error = None
+        for model_id in candidates:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+            req = urllib.request.Request(
+                url,
+                data=payload_bytes,
+                headers={"Content-Type": "application/json"}
+            )
 
-                content_parts = candidates[0].get("content", {}).get("parts", [])
-                if not content_parts:
-                    raise ValueError("Empty response from Gemini Vision.")
-
-                raw_json = content_parts[0].get("text", "").strip()
-                # Clean up any potential markdown code fences
-                if raw_json.startswith("```"):
-                    raw_json = raw_json.strip("`")
-                    if raw_json.startswith("json"):
-                        raw_json = raw_json[4:].strip()
-
-                return json.loads(raw_json)
-
-        except urllib.error.HTTPError as http_err:
             try:
-                err_data = json.loads(http_err.read().decode("utf-8"))
-                err_msg = err_data.get("error", {}).get("message", str(http_err))
-            except Exception:
-                err_msg = str(http_err)
-            raise ValueError(f"Google Gemini API error: {err_msg}")
-        except urllib.error.URLError as url_err:
-            raise ConnectionError(f"Could not reach Google Gemini API: {url_err.reason}")
+                with urllib.request.urlopen(req, timeout=25) as response:
+                    body = json.loads(response.read().decode("utf-8"))
+                    candidates_resp = body.get("candidates", [])
+                    if not candidates_resp:
+                        continue
+
+                    content_parts = candidates_resp[0].get("content", {}).get("parts", [])
+                    if not content_parts:
+                        continue
+
+                    raw_json = content_parts[0].get("text", "").strip()
+                    if raw_json.startswith("```"):
+                        raw_json = raw_json.strip("`")
+                        if raw_json.startswith("json"):
+                            raw_json = raw_json[4:].strip()
+
+                    res_data = json.loads(raw_json)
+                    res_data["_used_model"] = model_id
+                    return res_data
+
+            except urllib.error.HTTPError as http_err:
+                try:
+                    err_data = json.loads(http_err.read().decode("utf-8"))
+                    err_msg = err_data.get("error", {}).get("message", str(http_err))
+                except Exception:
+                    err_msg = str(http_err)
+
+                # If the specific model is not found in this API version, try next candidate
+                if "not found" in err_msg.lower() or http_err.code == 404:
+                    last_error = err_msg
+                    continue
+                else:
+                    # Authentication or quota error: surface immediately
+                    raise ValueError(f"Google Gemini API error: {err_msg}")
+            except urllib.error.URLError as url_err:
+                raise ConnectionError(f"Could not reach Google Gemini API: {url_err.reason}")
+
+        raise ValueError(f"Could not find an active Gemini model for this key. Last error: {last_error}")
 
     def predict(
         self,
@@ -156,7 +181,7 @@ class CaptionModel:
         api_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Generates high-accuracy vision captions using Google Gemini 1.5 Flash Vision.
+        Generates high-accuracy vision captions using Google Gemini Multimodal Vision.
         Extracts spatial attention map and returns standardized VisionVerse response schema.
         """
         final_key = (api_key or "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
@@ -182,10 +207,11 @@ class CaptionModel:
         if not captions_list:
             captions_list = [{
                 "text": primary_caption,
-                "confidence": gemini_data.get("confidence", 0.95)
+                "confidence": gemini_data.get("confidence", 0.96)
             }]
 
         attention_grid = self._generate_spatial_attention(image) if attention else None
+        used_model = gemini_data.get("_used_model", "gemini-flash")
 
         return {
             "caption": primary_caption,
@@ -195,7 +221,7 @@ class CaptionModel:
             "objects": gemini_data.get("objects", []),
             "scene": gemini_data.get("scene", "Photographic Scene"),
             "model": {
-                "architecture": "Google Gemini 1.5 Flash Vision",
+                "architecture": f"Google Gemini ({used_model}) Vision",
                 "encoder": "Multimodal Vision-Language Transformer",
                 "dataset": "Web-scale Multimodal",
                 "maxLength": 50,
