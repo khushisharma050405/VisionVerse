@@ -28,7 +28,7 @@ def health_check():
     return {
         "status": "healthy",
         "service": "VisionVerse Caption Generator",
-        "model": "Salesforce/blip-image-captioning-base",
+        "model": caption_model.model_name,
         "device": str(caption_model.device),
         "loaded": caption_model.is_loaded()
     }
